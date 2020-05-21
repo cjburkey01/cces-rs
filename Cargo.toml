@@ -1,0 +1,13 @@
+# CJ's Creature Evolution Simulator 2020 :)
+
+[package]
+name = "cces-rs"
+version = "0.1.0"
+authors = ["CJ Burkey <cjburkey01@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+enum-iterator = "0.6.0"
+num-traits = "0.2.11"
+num-derive = "0.3.0"
+specs = {version="0.16.1", features=["specs-derive"]}
