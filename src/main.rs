@@ -1,16 +1,17 @@
 #[macro_use]
 extern crate num_derive;
 
-pub mod instructions;
+pub mod creature;
+pub mod processor;
 
 use enum_iterator::IntoEnumIterator;
-use instructions::Instruction;
+use processor::Instruction;
 use std::convert::TryInto;
 
 fn main() {
     println!("Instructions: {{");
 
-    for instruction in Instruction::into_enum_iter() {
+    for instruction in creature::Instruction::into_enum_iter() {
         println!(
             "  [{:06b}] [{}] {:?}",
             (instruction.try_into().unwrap_or(0b00000000) >> 2),

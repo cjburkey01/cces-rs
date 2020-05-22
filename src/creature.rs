@@ -38,10 +38,10 @@ pub enum Instruction {
     GotoCondEq = 0b011001_01,
     /// Switch mem A and mem B.
     SwapAB = 0b010011_00,
-    /// Copy and clear the value of mem A into mem TMP.
-    StoreATmp = 0b010100_00,
-    /// Copy and clear the value of mem B into mem TMP.
-    StoreBTmp = 0b010101_00,
+    /// Copy the value of mem A into mem TMP.
+    CopyATmp = 0b010100_00,
+    /// Copy the value of mem B into mem TMP.
+    CopyBTmp = 0b010101_00,
     /// Copy and clear the value of mem TMP into mem A.
     LoadTmpA = 0b010110_00,
     /// Copy and clear the value of mem TMP into mem B.
@@ -78,13 +78,14 @@ pub enum Instruction {
 }
 
 impl Instruction {
-    /// When 1, the highest bit will instruct the parser to pop the next byte as it is the argument
-    /// for that instruction.
+    /// Bitmask to get the arguments from the instruction
     const ARG_BIT_MASK: u8 = 0b000000_11;
+}
 
+impl crate::processor::Instruction<u8> for Instruction {
     // `Instruction` implements copy so the value is not moved with this invocation
-    pub fn get_args(self) -> usize {
-        // Get the instruction bytes
+    fn get_args(self) -> usize {
+        // Get the instruction byte
         let inst = self.try_into().unwrap_or(0u8);
 
         // Get the last two bits of the instruction.
@@ -93,28 +94,20 @@ impl Instruction {
     }
 }
 
-/// Implements the converters to and from bytes into the given enum type
-macro_rules! impl_converts {
-    ($type:ty) => {
-        // Converts a byte to an instruction
-        impl TryFrom<$type> for u8 {
-            type Error = ();
+// Converts a byte to an instruction
+impl TryFrom<Instruction> for u8 {
+    type Error = ();
 
-            fn try_from(value: $type) -> Result<Self, Self::Error> {
-                value.to_u8().map_or(Err(()), |val| Ok(val))
-            }
-        }
-
-        // Converts an instruction into a byte
-        impl TryFrom<u8> for $type {
-            type Error = ();
-
-            fn try_from(value: u8) -> Result<Self, Self::Error> {
-                <$type>::from_u8(value).map_or(Err(()), |val| Ok(val))
-            }
-        }
-    };
+    fn try_from(value: Instruction) -> Result<Self, Self::Error> {
+        value.to_u8().map_or(Err(()), |val| Ok(val))
+    }
 }
 
-// Implement enum<->byte conversions
-impl_converts!(Instruction);
+// Converts an instruction into a byte
+impl TryFrom<u8> for Instruction {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Self::from_u8(value).map_or(Err(()), |val| Ok(val))
+    }
+}
