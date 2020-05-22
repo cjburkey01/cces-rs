@@ -12,8 +12,8 @@ fn main() {
 
     for instruction in Instruction::into_enum_iter() {
         println!(
-            "  [{:04b}] [{}] {:?}",
-            (instruction.try_into().unwrap_or(0b00000000) >> 4),
+            "  [{:06b}] [{}] {:?}",
+            (instruction.try_into().unwrap_or(0b00000000) >> 2),
             instruction.get_args(),
             instruction,
         );
