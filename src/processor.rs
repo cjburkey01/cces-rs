@@ -3,16 +3,13 @@ use std::convert::{TryFrom, TryInto};
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-/// A trait to keep a struct private
-trait _Private {}
-/// A struct which will make structs with fields of this type constructable only within this module.
+/// A struct that will make structs with fields of this type constructable only within this module.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-struct _PrivateAlloc;
-impl _Private for _PrivateAlloc {}
+struct _Private;
 
 /// Contains instruction execution memory data.
 /// Copy is not required to be implemented because this type is passed as a reference.
-pub trait ComputerMemory<MemType: PrimInt>: Debug {
+pub trait ProcessorMemory<MemType: PrimInt>: Debug {
     /// Returns the value of mem A.
     fn get_mem_a(&self) -> MemType;
 
@@ -38,31 +35,8 @@ pub trait Instruction<Prim: PrimInt>: Debug + Copy + TryInto<Prim> + TryFrom<Pri
     fn get_args(self) -> usize;
 }
 
-/// Contains shared functions between all instruction processors.
-pub trait InstructionProcessor<
-    Num: PrimInt,
-    Mem: ComputerMemory<Num>,
-    InstType: PrimInt,
-    Inst: Instruction<InstType>,
-    ArgType: PrimInt,
->: Debug
-{
-    /// Returns the number of complete instruction executions that have occurred within this
-    /// processor.
-    fn get_cycle_number(&self) -> u64;
-
-    /// Returns a reference the processor memory container.
-    fn get_mems(&self) -> &Mem;
-
-    /// Returns a mutable reference the processor memory container.
-    fn get_mems_mut(&mut self) -> &mut Mem;
-
-    /// Execute the given instruction for this processor.
-    fn execute(&mut self, instruction: InstructionCall<InstType, Inst, ArgType>);
-}
-
 /// Represents a call to an instruction with optional supplied arguments.
-/// This *should not* be constructed
+/// This *should not* be constructed without using one of the `new` functions.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct InstructionCall<
     InstType: PrimInt,
@@ -79,7 +53,7 @@ pub struct InstructionCall<
     _inst_type: PhantomData<InstType>,
 
     /// Keeps this struct instantiatable only within this module.
-    _private: _PrivateAlloc,
+    _private: _Private,
 }
 
 impl<InstType: PrimInt, Inst: Instruction<InstType>, ArgType: Clone + PartialEq>
@@ -98,11 +72,11 @@ impl<InstType: PrimInt, Inst: Instruction<InstType>, ArgType: Clone + PartialEq>
             instruction,
             args: (arg1, arg2, arg3),
             _inst_type: PhantomData,
-            _private: _PrivateAlloc,
+            _private: _Private,
         }
     }
 
-    /// Wraps an instruction with 3 argument.
+    /// Wraps an instruction with 3 arguments.
     /// Returns `Err(())` if the instruction has a different number of arguments required.
     #[inline(always)]
     pub fn new_3_arg(

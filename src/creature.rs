@@ -1,5 +1,8 @@
+use crate::processor::ProcessorMemory;
 use enum_iterator::IntoEnumIterator;
 use num_traits::{FromPrimitive, ToPrimitive};
+use specs::prelude::*;
+use specs::Component;
 use std::convert::{TryFrom, TryInto};
 
 /// Represents an instruction that a creature tries to execute.
@@ -21,60 +24,55 @@ pub enum Instruction {
     /// Try to forward 2 tiles (will only move 1 if unsuccessful).
     Jump = 0b000010_00,
     /// Rotate clockwise (relative to looking down).
-    RotateCW = 0b000100_00,
+    RotateCW = 0b000011_00,
     /// Rotate counter-clockwise (relative to looking down).
-    RotateCCW = 0b000110_00,
+    RotateCCW = 0b000100_00,
 
     //  Logic
     /// Set mem A to 0.
-    ClearA = 0b001000_00,
+    ClearA = 0b000101_00,
     /// Set mem B to 0.
-    ClearB = 0b001001_00,
+    ClearB = 0b000110_00,
     /// Jump to the byte of DNA provided as an argument (loops back to start above length).
-    Goto = 0b010000_01,
+    Goto = 0b000111_01,
     /// If mem A is greater than the value in mem B, perform a jump to the argument.
-    GotoCondAGtB = 0b011000_01,
+    GotoCondAGtB = 0b001000_01,
     /// If mem B is equal to mem A, perform a jump to the argument.
-    GotoCondEq = 0b011001_01,
+    GotoCondEq = 0b001001_01,
     /// Switch mem A and mem B.
-    SwapAB = 0b010011_00,
-    /// Copy the value of mem A into mem TMP.
-    CopyATmp = 0b010100_00,
-    /// Copy the value of mem B into mem TMP.
-    CopyBTmp = 0b010101_00,
+    SwapAB = 0b001010_00,
+    /// Copy the value of mem A into mem TMP (but don't clear A)
+    CopyATmp = 0b001011_00,
     /// Copy and clear the value of mem TMP into mem A.
-    LoadTmpA = 0b010110_00,
+    LoadTmpA = 0b001100_00,
     /// Copy and clear the value of mem TMP into mem B.
-    LoadTmpB = 0b010111_00,
+    LoadTmpB = 0b001101_00,
 
+    // Creature
     /// Load current health (0-max) into mem TMP.
-    StoreHealthTmp = 0b010000_00,
+    StoreHealthTmp = 0b001110_00,
     /// Load current fullness (0-max) into mem TMP.
-    StoreHungerTmp = 0b010001_00,
+    StoreHungerTmp = 0b001111_00,
     /// Load line of sight color hex (3 bytes) into mem TMP.
-    StoreLOSCTmp = 0b010010_00,
+    StoreLOSCTmp = 0b010000_00,
 
     //  Math
     /// Add the provided unsigned byte integer to signed mem A.
-    UAddA = 0b100000_01,
-    /// Add the provided unsigned byte integer to signed mem B.
-    UAddB = 0b100001_01,
+    UAdd = 0b010001_01,
     /// Add the provided signed byte integer to signed mem A.
-    IAddA = 0b100010_01,
-    /// Add the provided signed byte integer to signed mem B.
-    IAddB = 0b100011_01,
+    IAdd = 0b010010_01,
+    /// Bitwise AND with A and B put into A.
+    BitAndB = 0b010011_00,
     /// Bitwise AND with A and the argument put into A.
-    BitAndATmp = 0b110000_01,
-    /// Bitwise AND with B and the argument put into B.
-    BitAndBTmp = 0b110001_01,
+    BitAnd = 0b010011_01,
+    /// Bitwise AND with A and B put into A.
+    BitOrB = 0b010100_00,
     /// Bitwise AND with A and the argument put into A.
-    BitOrATmp = 0b111000_01,
-    /// Bitwise AND with B and the argument put into B.
-    BitOrBTmp = 0b111001_01,
+    BitOr = 0b010100_01,
+    /// Bitwise X-OR with A and B put into A.
+    BitXorB = 0b010101_00,
     /// Bitwise X-OR with A and the argument put into A.
-    BitXorATmp = 0b111100_01,
-    /// Bitwise X-OR with B and the argument put into B.
-    BitXorBTmp = 0b111101_01,
+    BitXor = 0b010101_01,
 }
 
 impl Instruction {
@@ -109,5 +107,81 @@ impl TryFrom<u8> for Instruction {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Self::from_u8(value).map_or(Err(()), |val| Ok(val))
+    }
+}
+
+/// Represents the values in the creature's memory
+#[derive(Debug, Clone, PartialEq, Eq, Component)]
+#[storage(VecStorage)]
+pub struct CreatureMemory {
+    /// Mem A
+    a: u64,
+
+    /// Mem B
+    b: u64,
+
+    /// Mem TMP
+    tmp: u64,
+}
+
+impl CreatureMemory {
+    #[inline(always)]
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Default for CreatureMemory {
+    fn default() -> Self {
+        Self { a: 0, b: 0, tmp: 0 }
+    }
+}
+
+impl ProcessorMemory<u64> for CreatureMemory {
+    fn get_mem_a(&self) -> u64 {
+        self.a
+    }
+
+    fn get_mem_b(&self) -> u64 {
+        self.b
+    }
+
+    fn get_mem_tmp(&self) -> u64 {
+        self.tmp
+    }
+
+    fn set_mem_a(&mut self, value: u64) {
+        self.a = value;
+    }
+
+    fn set_mem_b(&mut self, value: u64) {
+        self.b = value;
+    }
+
+    fn set_mem_tmp(&mut self, value: u64) {
+        self.tmp = value;
+    }
+}
+
+#[derive(Debug, Clone, Component)]
+pub struct Creature {
+    cycle: u64,
+    current: u64,
+    instructions: Vec<Instruction>,
+}
+
+impl Creature {
+    #[inline(always)]
+    pub fn new() -> Self {
+        Self::new_with(vec![])
+    }
+
+    #[inline(always)]
+    pub fn new_with(instructions: Vec<Instruction>) -> Self {
+        Self {
+            cycle: 0,
+            current: 0,
+            instructions,
+        }
     }
 }
