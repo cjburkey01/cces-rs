@@ -5,6 +5,13 @@ use specs::prelude::*;
 use specs::Component;
 use std::convert::{TryFrom, TryInto};
 
+/// Creates a creature with the given instructions
+pub macro create_creature($($inst: ident),*) {
+    crate::creature::Creature::new_with(vec![
+        $(crate::creature::Instruction::$inst.try_into().unwrap(),)*
+    ])
+}
+
 /// Represents an instruction that a creature tries to execute.
 ///
 /// The most significant six bits represent the unique ID of the instruction and the least
@@ -53,6 +60,8 @@ pub enum Instruction {
     StoreHealthTmp = 0b001110_00,
     /// Load current fullness (0-max) into mem TMP.
     StoreHungerTmp = 0b001111_00,
+    /// Load current fullness (0-max) into mem TMP.
+    StoreWasteTmp = 0b010110_00,
     /// Load line of sight color hex (3 bytes) into mem TMP.
     StoreLOSCTmp = 0b010000_00,
 
@@ -167,7 +176,7 @@ impl ProcessorMemory<u64> for CreatureMemory {
 pub struct Creature {
     cycle: u64,
     current: u64,
-    instructions: Vec<Instruction>,
+    instructions: Vec<u8>,
 }
 
 impl Creature {
@@ -177,11 +186,25 @@ impl Creature {
     }
 
     #[inline(always)]
-    pub fn new_with(instructions: Vec<Instruction>) -> Self {
+    pub fn new_with(instructions: Vec<u8>) -> Self {
         Self {
             cycle: 0,
             current: 0,
             instructions,
         }
+    }
+
+    pub fn get_instructions(&self) -> &Vec<u8> {
+        &self.instructions
+    }
+
+    pub fn get_instructions_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.instructions
+    }
+}
+
+impl Default for Creature {
+    fn default() -> Self {
+        Self::new()
     }
 }
